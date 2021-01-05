@@ -254,6 +254,21 @@ end.
 
 
 
+(*functia aeval pt expresii aritmetice*)
+Fixpoint aeval_fun (a : AExp) (env : Env) : ErrorNat :=
+  match a with
+  | avar v => match (env v) with
+                | res_nat n => n
+                | _ => error_nat
+                end
+  | anum v => v
+  | aplus a1 a2 => (plus_ErrorNat (aeval_fun a1 env) (aeval_fun a2 env))
+  | amul a1 a2 => (mul_ErrorNat (aeval_fun a1 env) (aeval_fun a2 env))
+  | asub a1 a2 => (sub_ErrorNat (aeval_fun a1 env) (aeval_fun a2 env))
+  | adiv a1 a2 => (div_ErrorNat  (aeval_fun a1 env) (aeval_fun a2 env))
+  | amod a1 a2 => (mod_ErrorNat (aeval_fun a1 env) (aeval_fun a2 env))
+  | alung S1 => (lung_ErrorNat (env S1))
+  end.
 
 
 
@@ -261,6 +276,12 @@ end.
 
 
 
+
+
+
+
+
+(*expresii boolene*)
 Inductive BExp :=
   | berror
   | btrue
@@ -332,6 +353,23 @@ Compute or_ErrorBool (and_ErrorBool true true) false.
 
 
 
+(*functia beval pentru expresii boolene*)
+Fixpoint beval_fun (a : BExp) (envnat : Env) : ErrorBool :=
+  match a with
+  | btrue => true
+  | bfalse => false
+  | berror => error_bool
+  | bvar v => match (env v) with (* rezultatul variabilei trebuie sa fie de tip bool*)
+                | res_bool n => n
+                | _ => error_bool
+                end
+  | blt a1 a2 => (lt_ErrorBool (aeval_fun a1 envnat) (aeval_fun a2 envnat))
+  | bgt a1 a2 => (gt_ErrorBool (aeval_fun a1 envnat) (aeval_fun a2 envnat))
+  | bnot b1 => (not_ErrorBool (beval_fun b1 envnat))
+  | band b1 b2 => (and_ErrorBool (beval_fun b1 envnat) (beval_fun b2 envnat))
+  | bor b1 b2 => (or_ErrorBool (beval_fun b1 envnat) (beval_fun b2 envnat))
+  | bstring s1 s2=> (res_ErrorBool (envnat s1) (envnat s2))
+  end.
 
 
 
