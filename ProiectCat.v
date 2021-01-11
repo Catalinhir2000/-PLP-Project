@@ -249,7 +249,8 @@ match r with
 end.
 
 
-
+Compute ( plus_ErrorNat 11 22 ).
+Compute (div_ErrorNat (mul_ErrorNat 22 11) (sub_ErrorNat 22 11)).
 
 
 
@@ -343,6 +344,7 @@ match r1,r2 with
 | _,_ => false
 end.
  
+Compute and_ErrorBool false true.
 Compute res_ErrorBool (res_string "test") (res_string "tet").
 Compute or_ErrorBool (lt_ErrorBool 1 2) (gt_ErrorBool 3 4).
 Compute or_ErrorBool (and_ErrorBool true true) false.
@@ -421,6 +423,11 @@ Notation "'Daca' ( B ) 'atunci' {' S }" := (ifthen B S)( at level 93).
 Notation "'Strcpy' ( S1 , S2 )":= (String_Cpy S1 S2) (at level 93).
 Notation "'Strcat' ( S1 , S2 )":= (String_Cat S1 S2) (at level 93).
 
+
+Compute iString "asdaddasa".
+Compute iBool "true".
+Compute Strcat ( "asda" , "asdader" ).
+
 Definition to_char (n: nat) : string :=
  match n with
   | 0 =>"0"
@@ -437,7 +444,7 @@ Definition to_char (n: nat) : string :=
 
  end.
  
-
+(*valoarea default in functie de tip*)
 Definition res_check (n: nat) : Result :=
 match n with
  | 1 => res_nat 0 
@@ -464,19 +471,42 @@ Definition vect (env : Env) (s : string) (r: Result) : Env :=
 
 Definition vect_concat (s1 :string) (n:nat) : string :=
  StringConc (StringConc (StringConc s1 "[") (to_char n)) "]".
+Fixpoint decl_vect (env : Env) (s : string) (n tip: nat) : Env :=
+ match n with
+  | 0 => env
+  | S n'=> decl_vect (update (update env (vect_concat s n') default) (vect_concat s n') (res_check tip) ) s n' tip
+ end.
 
 
 
-
+(*tipul de date struct*)
 Definition struct_concat (s1 s2 :string) : string :=
  StringConc (StringConc s1 ".") s2.
 
-Compute struct_concat "a" "m".
+Compute struct_concat "x" "y".
 Compute vect_concat "x" 5.
 
 Compute (update env (struct_concat "s" "x") default) "s.x".
 Compute (update (update env (struct_concat "s" "x") default) (struct_concat "s" "x") (res_nat 0)) "s.x" .
 
+Fixpoint decl_struct ( env : Env) (s: string) (a : Stmt) : Env :=
+match a with
+ | sequence b c =>if(Nat.ltb 0 (decl_check b))
+                  then match b with
+                       | nat_decl x => decl_struct (update (update env (struct_concat s x) default) (struct_concat s x) (res_nat 0) ) s c
+                       | bool_decl x => decl_struct (update (update env (struct_concat s x) default) (struct_concat s x) (res_bool true) ) s c
+                       | string_decl x => decl_struct (update (update env (struct_concat s x) default) (struct_concat s x) (res_string "") ) s c
+                       | _ => env
+                       end
+                  else env
+ |nat_decl x => update (update env (struct_concat s x) default) (struct_concat s x) (res_nat 0)
+ | bool_decl x => update (update env (struct_concat s x) default) (struct_concat s x) (res_bool true) 
+ | string_decl x => update (update env (struct_concat s x) default) (struct_concat s x) (res_string "")
+ | _ => env
+end.
+
+
+Compute (decl_struct env "coq" ( iString "language" ) ) "coq.language".
 
 
 
