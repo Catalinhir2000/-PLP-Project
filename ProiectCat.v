@@ -600,7 +600,7 @@ Definition ex2:=
 
 Compute (eval_fun ex2 env 100) "x".
 
-Definition Checkq :=
+Definition ex3 :=
 iNat "x" ;;
 iNat "y" ;;
 "x" :n= 12 +' 13 ;;
@@ -610,7 +610,7 @@ Case ('3) {' "y" :n= 3} ;;
 Case ('15) {' "y" :n= 15}
 }.
 
-Compute (eval_fun Checkq env 100) "y". 
+Compute (eval_fun ex3 env 100) "y". 
 
 
 
