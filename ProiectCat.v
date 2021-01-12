@@ -272,8 +272,9 @@ Fixpoint aeval_fun (a : AExp) (env : Env) : ErrorNat :=
   end.
 
 
+Compute aeval_fun ( StringLen ("asfasda") +' 123 ) env.
 
-
+Compute aeval_fun ("var" +' 3) (update env "var" (res_nat 23)).
 
 
 
@@ -354,7 +355,6 @@ Compute or_ErrorBool (and_ErrorBool true true) false.
 
 
 
-
 (*functia beval pentru expresii boolene*)
 Fixpoint beval_fun (a : BExp) (envnat : Env) : ErrorBool :=
   match a with
@@ -373,6 +373,7 @@ Fixpoint beval_fun (a : BExp) (envnat : Env) : ErrorBool :=
   | bstring s1 s2=> (res_ErrorBool (envnat s1) (envnat s2))
   end.
 
+Compute beval_fun (5 <' 2) env .
 
 
 
@@ -410,16 +411,16 @@ Notation "'boolVect' X [ n ] " := (vect_decl X n 2) (at level 90).
 Notation "'stringVect' X [ n ] " := (vect_decl X n 3) (at level 90).
 Notation "'Structure' X { S }" := (struct_decl X S) (at level 90).
 
-Notation "'Case' ( A ) { S }" := (case A S) (at level 95).
-Notation "'Switch' ( A ) : S " := (switch_case A S) ( at level 93).
+Notation "'Case' (' A ) {' S }" := (case A S) (at level 95).
+Notation "'Switch' ( A ) : { S } " := (switch_case A S) ( at level 93).
 Notation "X :n= A" := (nat_assign X A)(at level 90).
 Notation "X :b= A" := (bool_assign X A)(at level 90).
 Notation "X :s= A" := (string_assign X A)(at level 90).
 Notation "X :v= A" := (var_assign X A) (at level 90).
 Notation "S1 ;; S2" := (sequence S1 S2) (at level 93, right associativity).
 Notation "'CatTimp' ( B ) { S }" := (while B S) (at level 93).
-Notation "'Daca' ( B ) 'atunci' {' S } 'altfel' {' S2 }" := (ifthenelse B S S2) (at level 93).
-Notation "'Daca' ( B ) 'atunci' {' S }" := (ifthen B S)( at level 93).
+Notation "'Daca' ( B ) 'atunci' { S } 'altfel' { S2 }" := (ifthenelse B S S2) (at level 93).
+Notation "'Daca' ( B ) 'atunci' { S }" := (ifthen B S)( at level 93).
 Notation "'Strcpy' ( S1 , S2 )":= (String_Cpy S1 S2) (at level 93).
 Notation "'Strcat' ( S1 , S2 )":= (String_Cat S1 S2) (at level 93).
 
@@ -508,8 +509,108 @@ end.
 
 Compute (decl_struct env "coq" ( iString "language" ) ) "coq.language".
 
+Definition Res_Conc (r1 r2 :Result) :Result :=
+match r1,r2 with
+| res_string s1, res_string s2 => res_string (StringConc s1 s2)
+| _,_ => err_str
+end.
+
+(*statements eval*)
+Fixpoint eval_fun (s : Stmt) (env : Env) (gas: nat) : Env :=
+    match gas with
+    | 0 => env
+    | S gas' => match s with
+                | nat_decl a => update (update env a default) a (res_nat 0)
+                | bool_decl b => update (update env b default) b (res_bool true)
+                | string_decl s => update env s default
+
+                | nat_assign a aexp => update env a (res_nat (aeval_fun aexp env))
+                | bool_assign b bexp => update env b (res_bool (beval_fun bexp env))
+                | string_assign s str => update env s (res_string str)
+                | var_assign s1 s2 =>if(check_eq_over_types (env s1) (env s2))
+                                     then update env s1 (env s2)
+                                     else env
+
+                | vect_decl s n m=> decl_vect env s n m
+                | struct_decl s n => decl_struct env s n
+
+                | sequence S1 S2 => eval_fun S2 (eval_fun S1 env gas') gas' 
+                
+                | ifthen cond s' => 
+                    match (beval_fun cond env) with
+                    | error_bool => env
+                    | boolean v => match v with
+                                 | true => eval_fun s' env gas'
+                                 | false => env
+                                 end
+                    end
+                | ifthenelse cond S1 S2 => 
+                    match (beval_fun cond env) with
+                        | error_bool => env
+                        | boolean v  => match v with
+                                 | true => eval_fun S1 env gas'
+                                 | false => eval_fun S2 env gas'
+                                 end
+                         end
+                | while cond s' => 
+                    match (beval_fun cond env) with
+                        | error_bool => env
+                        | boolean v => match v with
+                                     | true => eval_fun (s' ;; (while cond s')) env gas'
+                                     | false => env
+                                     end
+                        end
+                | case n St =>eval_fun St env gas'
+               
+                | switch_case AE C =>
+                                 match C with
+                                         | case n St => if(ErrorNat_beq n (aeval_fun AE env))  
+                                                       then eval_fun St env gas'
+                                                        else env
+                                          | sequence S1 S2 => match S1 with    
+                                                              | case n St => if(ErrorNat_beq n (aeval_fun AE env))  
+                                                                            then eval_fun St env gas'   
+                                                                            else eval_fun (switch_case AE S2) env gas'
+                                                               | _ => env
+                                                                end
+                                         | _ => env
+                                 end
+              
+                 | String_Cpy S1 S2 => update env S1 (env S2) 
+                 | String_Cat S1 S2 => update env S1 (Res_Conc (env S1) (env S2))               
+                end
+    end.
 
 
+Definition ex1 :=
+ iNat "x" ;;
+ iNat "y" ;;
+ iNat "z";;
+ "x" :n= 12 ;;
+ "y" :n= 13 ;;
+ "z" :n= "x" +' "y".
+
+Compute (eval_fun ex1 env 100) "z".
+
+
+Definition ex2:=
+ iNat "x";;
+ "x" :n=12 ;;
+ Daca ("x" <' 22 ) atunci { "x" :n= 23 }.
+
+Compute (eval_fun ex2 env 100) "x".
+
+Definition Checkq :=
+iNat "x" ;;
+iNat "y" ;;
+"x" :n= 12 +' 13 ;;
+Switch ("x" ) : {
+Case ('25) {' "y" :n= 26} ;;
+Case ('3) {' "y" :n= 3} ;;
+Case ('15) {' "y" :n= 15}
+}.
+
+Compute (eval_fun Checkq env 100) "y". 
 
 
 
